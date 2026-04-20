@@ -115,7 +115,7 @@ static uint64_t get_timestamp_ns(void);
 static int ms_to_ns(int ms);
 static int read_gpio_state(struct key_handle *key);
 static void process_key_event(struct key_handle *key);
-static void detect_key_events(struct key_handle *key, int new_state);
+static void detect_key_events(struct key_handle *key, int new_state, uint64_t event_time);
 static void fire_key_event(struct key_handle *key, key_event_t event);
 #if defined(LIBGPIOD_V2)
 static struct gpiod_chip* open_gpio_chip(int gpio_num, unsigned int *offset);
@@ -520,7 +520,7 @@ static void process_key_event(struct key_handle *key)
                 raw_state,
                 time_since_change);
 
-            detect_key_events(key, raw_state);
+            detect_key_events(key, raw_state, now);
             key->internal.current_state = raw_state;
         }
 
@@ -544,7 +544,7 @@ static void process_key_event(struct key_handle *key)
             // 连发检测
             if (key->internal.long_press_detected) {
                 uint64_t next_repeat_time = long_press_ns +
-                    (key->internal.hold_repeat_count * repeat_ns);
+                    ((key->internal.hold_repeat_count + 1) * repeat_ns);
 
                 if (press_duration > next_repeat_time) {
                     key_log_info("GPIO%d 连发 #%d，持续时间: %lums\n",
@@ -581,15 +581,13 @@ static void process_key_event(struct key_handle *key)
 /**
  * @brief 检测按键事件
  */
-static void detect_key_events(struct key_handle *key, int new_state)
+static void detect_key_events(struct key_handle *key, int new_state, uint64_t event_time)
 {
-    uint64_t now = get_timestamp_ns();
-
     if (new_state == KEY_STATE_PRESSED) {
         // 按下事件
         key_log_info("GPIO%d 检测到按下\n", key->internal.gpio_num);
         fire_key_event(key, KEY_EV_PRESSED);
-        key->internal.press_timestamp = now;
+        key->internal.press_timestamp = event_time;
         key->internal.long_press_detected = 0;
         key->internal.hold_repeat_count = 0;
 
@@ -597,7 +595,16 @@ static void detect_key_events(struct key_handle *key, int new_state)
         // 释放事件
         key_log_info("GPIO%d 检测到释放\n", key->internal.gpio_num);
         fire_key_event(key, KEY_EV_RELEASED);
-        key->internal.release_timestamp = now;
+        key->internal.release_timestamp = event_time;
+
+        if (key->internal.long_press_detected) {
+            key_log_info("GPIO%d 长按释放，取消单击/双击检测\n", key->internal.gpio_num);
+            key->internal.click_count = 0;
+            key->internal.first_click_time = 0;
+            key->internal.long_press_detected = 0;
+            key->internal.hold_repeat_count = 0;
+            return;
+        }
 
         // 检测双击
         uint64_t double_click_ns = ms_to_ns(key->internal.double_click_ms);
@@ -605,12 +612,12 @@ static void detect_key_events(struct key_handle *key, int new_state)
         if (key->internal.click_count == 0) {
             // 第一次点击
             key->internal.click_count = 1;
-            key->internal.first_click_time = now;
+            key->internal.first_click_time = event_time;
             key_log_info("GPIO%d 第一次点击记录\n", key->internal.gpio_num);
 
         } else {
             // 检查是否在双击时间窗口内
-            uint64_t time_since_first_click = now - key->internal.first_click_time;
+            uint64_t time_since_first_click = event_time - key->internal.first_click_time;
 
             if (time_since_first_click <= double_click_ns) {
                 // 双击事件
@@ -624,7 +631,7 @@ static void detect_key_events(struct key_handle *key, int new_state)
                 key_log_info("GPIO%d 双击超时，触发之前的单击\n", key->internal.gpio_num);
                 fire_key_event(key, KEY_EV_CLICK);
                 key->internal.click_count = 1;
-                key->internal.first_click_time = now;
+                key->internal.first_click_time = event_time;
             }
         }
     }

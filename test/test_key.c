@@ -108,16 +108,16 @@ int main(void)
 
     // 配置按键1（假设连接到 GPIO17，低电平有效）
     key_config_t key1_config = {
-        .gpio_num = 83,
-        .active_low = 1,           // 低电平有效
+        .gpio_num = 113,
+        .active_low = 0,           // 低电平有效
         .long_press_ms = 1500,     // 1.5秒长按
         .double_click_ms = 300     // 300ms内双击有效
     };
 
     // 配置按键2（假设连接到 GPIO18，高电平有效）
     key_config_t key2_config = {
-        .gpio_num = 82,
-        .active_low = 1,           // 高电平有效
+        .gpio_num = 114,
+        .active_low = 0,           // 高电平有效
         .long_press_ms = 2000,     // 2秒长按
         .double_click_ms = 400     // 400ms内双击有效
     };

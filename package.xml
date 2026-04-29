@@ -3,7 +3,7 @@
   <name>key</name>
   <version>0.1.0</version>
   <description>GPIO key and button input via libgpiod</description>
-  <system_depend scope="sysroot" check="sysroot_pkg_config_exists libgpiod">libgpiod-dev</system_depend>
+  <system_depend check="pkg-config --exists libgpiod">libgpiod-dev</system_depend>
 
   <export>
     <build_type>cmake</build_type>

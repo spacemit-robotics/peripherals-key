@@ -77,14 +77,14 @@ install(TARGETS key
 )
 install(FILES include/key.h DESTINATION include)
 
-# Optional: Build test executable
+# Optional: Build example executable
 enable_testing()
 
 
 
 
-# Build test - compile with library and include key.c directly for test mode
-add_executable(test_key ${CMAKE_CURRENT_SOURCE_DIR}/test/test_key.c ${CMAKE_CURRENT_SOURCE_DIR}/src/key.c)
+# Build example - compile with library and include key.c directly for test mode
+add_executable(test_key ${CMAKE_CURRENT_SOURCE_DIR}/example/test_key.c ${CMAKE_CURRENT_SOURCE_DIR}/src/key.c)
 target_compile_definitions(test_key PRIVATE KEY_TEST_MODE)
 target_include_directories(test_key PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/include

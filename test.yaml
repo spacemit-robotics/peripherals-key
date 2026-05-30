@@ -1,0 +1,36 @@
+## Copyright (C) 2026 SpacemiT (Hangzhou) Technology Co. Ltd.
+## SPDX-License-Identifier: Apache-2.0
+
+module: components/peripherals/key
+
+tests:
+  - name: key-api-functional
+    description: Verifies GPIO key service start, add/remove, and press/release/long-press callbacks with fake gpiod.
+    category: functional
+    scopes: [pr, scheduled]
+    timeout_s: 120
+    workdir: sdk
+    command: |
+      bash components/peripherals/key/tests/test_key_api_contract.sh functional
+
+  - name: key-api-error-paths
+    description: Verifies add-before-start, null config/callback, invalid GPIO, repeated start/stop, and null remove handling.
+    category: functional
+    scopes: [pr, scheduled]
+    timeout_s: 120
+    workdir: sdk
+    command: |
+      bash components/peripherals/key/tests/test_key_api_contract.sh error-paths
+
+  - name: key-gpio-hardware-smoke
+    description: Manually verifies real GPIO key events are emitted when a supervised operator presses a configured key.
+    category: functional
+    scopes: [manual]
+    timeout_s: 180
+    workdir: sdk
+    requires:
+      hardware:
+        - GPIO keys matching the demo configuration in key/example/test_key.c.
+      supervision: true
+    command: |
+      bash components/peripherals/key/tests/test_hw_key_smoke.sh

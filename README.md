@@ -36,6 +36,19 @@ make -j
 sudo ./build/test_key
 ```
 
+示例程序也支持从命令行指定两个 GPIO 和有效电平：
+```bash
+./build/test_key [gpio1 gpio2 [active_low]]
+```
+
+- 默认使用 GPIO113、GPIO114，`active_low=0`（高电平有效）。
+- `active_low=1` 表示低电平有效，两个按键共用此设置。
+- MUSE Pi Pro 上 GPIO49、GPIO50 接地触发时，可以运行：
+  ```bash
+  sudo ./build/test_key 49 50 1
+  ```
+- 可以运行 `./build/test_key --help` 查看用法。GPIO 编号必须是非负整数，`active_low` 只能是 `0` 或 `1`。
+
 ### 代码示例
 ```c
 #include <key.h>

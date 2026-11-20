@@ -3,14 +3,34 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <key.h>
+#include <errno.h>
+#include <limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
 #include <string.h>
+#include <unistd.h>
 
 /* --- 全局变量 --- */
 static volatile int running = 1;
+
+static int parse_nonnegative_int(const char *text, int *value)
+{
+    char *end = NULL;
+    long parsed;
+
+    if (!text || !*text || !value)
+        return -1;
+
+    errno = 0;
+    parsed = strtol(text, &end, 10);
+    if (errno == ERANGE || end == text || *end != '\0' ||
+        parsed < 0 || parsed > INT_MAX)
+        return -1;
+
+    *value = (int)parsed;
+    return 0;
+}
 
 /* --- 信号处理 --- */
 void signal_handler(int sig)
@@ -85,13 +105,44 @@ void print_help(void)
     printf("  3. 按住1.5秒以上   -> 长按事件\n");
     printf("  4. 长按后保持      -> 连发事件\n");
     printf("\n");
+    printf("用法: test_key [gpio1 gpio2 [active_low]]\n");
+    printf("默认: GPIO113、GPIO114，高电平有效\n");
+    printf("示例: test_key 49 50 1   (GPIO49/50，低电平有效)\n");
+    printf("active_low 只能填写 0（高电平有效）或 1（低电平有效）\n");
+    printf("\n");
     printf("按 Ctrl+C 退出程序\n");
     printf("\n");
 }
 
 /* --- 主函数 --- */
-int main(void)
+int main(int argc, char *argv[])
 {
+    int gpio1 = 113;
+    int gpio2 = 114;
+    int active_low = 0;
+
+    if (argc == 2 && strcmp(argv[1], "--help") == 0) {
+        print_help();
+        return 0;
+    }
+    if (argc != 1 && argc != 3 && argc != 4) {
+        fprintf(stderr, "用法: %s [gpio1 gpio2 [active_low]]\n", argv[0]);
+        return 2;
+    }
+    if (argc >= 3 && (parse_nonnegative_int(argv[1], &gpio1) != 0 ||
+        parse_nonnegative_int(argv[2], &gpio2) != 0)) {
+        fprintf(stderr, "GPIO 编号必须是 0 到 %d 之间的非负整数\n", INT_MAX);
+        return 2;
+    }
+    if (argc == 4) {
+        if (parse_nonnegative_int(argv[3], &active_low) != 0 ||
+            (active_low != 0 && active_low != 1)) {
+            fprintf(stderr,
+                "active_low 只能填写 0（高电平有效）或 1（低电平有效）\n");
+            return 2;
+        }
+    }
+
     printf("启动按键驱动演示程序...\n");
 
     // 设置信号处理
@@ -106,18 +157,18 @@ int main(void)
         return 1;
     }
 
-    // 配置按键1（假设连接到 GPIO17，低电平有效）
+    // 配置按键1
     key_config_t key1_config = {
-        .gpio_num = 113,
-        .active_low = 0,           // 低电平有效
+        .gpio_num = gpio1,
+        .active_low = active_low,
         .long_press_ms = 1500,     // 1.5秒长按
         .double_click_ms = 300     // 300ms内双击有效
     };
 
-    // 配置按键2（假设连接到 GPIO18，高电平有效）
+    // 配置按键2
     key_config_t key2_config = {
-        .gpio_num = 114,
-        .active_low = 0,           // 高电平有效
+        .gpio_num = gpio2,
+        .active_low = active_low,
         .long_press_ms = 2000,     // 2秒长按
         .double_click_ms = 400     // 400ms内双击有效
     };
